@@ -5,7 +5,7 @@ import { CacheClient } from './CacheClient';
 export interface FetcherOptions {
     axiosOptions: AxiosRequestConfig;
     cacheClient: CacheClient;
-    logger: Logger
+    logger?: Logger
     cacheTTL: number;
     refreshEnabled: boolean;
     refreshInterval: number;
