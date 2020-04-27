@@ -1,0 +1,11 @@
+---
+kind: pipeline
+type: kubernetes
+name: default
+
+steps:
+- name: test
+  image: node:lts-alpine
+  commands:
+  - npm install
+  - npm test
