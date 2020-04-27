@@ -9,3 +9,10 @@ steps:
   commands:
   - npm install
   - npm test
+- name: publish npm
+  image: plugins/npm
+  settings:
+    username: r1cebank
+    password:
+      from_secret: npm_password
+    email: siyuangao@gmail.com

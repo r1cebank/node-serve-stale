@@ -1,6 +1,6 @@
 {
   "name": "node-serve-stale",
-  "version": "0.1.5",
+  "version": "0.1.1",
   "description": "Node.js request caching layer",
   "main": "build/main/index.js",
   "typings": "build/main/index.d.ts",
@@ -91,7 +91,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm version --commit-hooks false minor"
+      "pre-commit": ""
     }
   },
   "config": {
