@@ -91,7 +91,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": ""
+      "pre-commit": "npm version --commit-hooks false minor"
     }
   },
   "config": {
