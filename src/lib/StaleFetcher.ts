@@ -76,7 +76,7 @@ export class StaleFetcher {
             this.hashHandlers[requestHash] = [
               (response: unknown) => {
                 resolve(<T>response);
-              },
+              }
             ];
             this.axiosInstance.get<T>(url, options).then((response) => {
               const { data } = response;

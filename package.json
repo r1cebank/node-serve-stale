@@ -17,7 +17,7 @@
     "fix:prettier": "prettier \"src/**/*.ts\" --write",
     "fix:eslint": "eslint src/lib/*.ts --fix",
     "test": "run-s build test:*",
-    "test:lint": "eslint \"src/lib/*.ts\" && prettier \"src/**/*.ts\" --list-different",
+    "lint": "eslint \"src/lib/*.ts\"",
     "test:unit": "nyc --silent ava",
     "watch": "run-s clean build:main && run-p \"build:main -- -w\" \"test:unit -- --watch\"",
     "cov": "run-s build test:unit cov:html && open-cli coverage/index.html",

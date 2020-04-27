@@ -22,6 +22,8 @@ module.exports = {
     '@typescript-eslint',
   ],
   rules: {
+    'comma-dangle': ['error', 'never'],
+    'indent': ['error', 2],
     'object-curly-spacing': ['error', 'always']
   },
   overrides: [
