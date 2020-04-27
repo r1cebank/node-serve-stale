@@ -1,3 +1,3 @@
 export type ResponseHandler = {
-    [key: string]: [(response: unknown) => void];
-}
+  [key: string]: [(response: unknown) => void];
+};
