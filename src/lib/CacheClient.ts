@@ -1,10 +1,4 @@
 export interface CacheClient {
-  get(key: string, cb: (err: Error, value: string) => unknown): unknown;
-  set(
-    key: string,
-    value: string,
-    mode: string,
-    ttl: number,
-    cb?: (err: Error, response: unknown) => unknown
-  ): unknown;
+  get(key: string): Promise<string>;
+  set(key: string, value: string, ttl: number): boolean;
 }

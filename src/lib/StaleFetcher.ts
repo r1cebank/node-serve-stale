@@ -1,10 +1,12 @@
 import crypto from 'crypto';
 import shortid from 'shortid';
 import Axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import NodeCache from 'node-cache';
 import { FetcherOptions } from './FetcherOptions';
 import { ResponseHandler } from './ResponseHandler';
 import { CacheClient } from './CacheClient';
 import { Logger } from 'pino';
+import { RefreshConfig } from './RefreshConfig';
 
 /**
  * Creates a fetcher that does stale fetch
@@ -12,11 +14,11 @@ import { Logger } from 'pino';
 export class StaleFetcher {
   private axiosInstance: AxiosInstance;
   private cacheClient: CacheClient;
+  private refreshCache: NodeCache;
   private logger?: Logger;
   private instanceId: string;
   private hashHandlers: ResponseHandler;
   private cacheTTL: number;
-  private refreshInterval: number;
   /**
    * Creates a stale fetcher
    * @param {FetcherOptions} options Fetcher Options
@@ -28,7 +30,20 @@ export class StaleFetcher {
     this.instanceId = shortid();
     this.hashHandlers = <ResponseHandler>{};
     this.cacheTTL = options.cacheTTL;
-    this.refreshInterval = options.refreshInterval;
+    this.refreshCache = new NodeCache({
+      stdTTL: options.refreshInterval / 1000,
+      checkperiod: 1
+    });
+
+    this.refreshCache.on(
+      'expired',
+      async (key: string, value: RefreshConfig) => {
+        const { url, options } = value;
+        this.logger?.info(`Refreshing request cache key ${key}`);
+        const { data } = await this.axiosInstance.get(url, options);
+        this.store(key, JSON.stringify(data), this.cacheTTL, value);
+      }
+    );
   }
   /**
    * Caculate hash for the request
@@ -40,10 +55,26 @@ export class StaleFetcher {
     const hasher = crypto.createHash('sha256');
     hasher.update(url);
     if (options) {
-      hasher.update(options.headers);
+      hasher.update(JSON.stringify(options.headers));
     }
     const requestHash = hasher.digest('hex');
     return `${this.instanceId}-${requestHash}`;
+  }
+  /**
+   * Set a cache entry and create refresh job
+   * @param {string} key cache key
+   * @param {string} value cache value
+   * @param {number} ttl time to live
+   * @param {RefreshConfig} config how to refresh the cache
+   */
+  private store(
+    key: string,
+    value: string,
+    ttl: number,
+    config: RefreshConfig
+  ) {
+    this.cacheClient.set(key, value, ttl);
+    this.refreshCache.set(key, config);
   }
   /**
    * Request the resource using GET
@@ -54,12 +85,9 @@ export class StaleFetcher {
     const requestHash = this.calculateHash(url, options);
     this.logger?.info(`Request for ${url}`);
 
-    return new Promise<T>((resolve, reject) => {
-      this.cacheClient.get(requestHash, (error?: Error, value?: string) => {
-        if (error) {
-          this.logger?.error('Error getting from redis', error);
-          reject(error);
-        }
+    return new Promise<T>(async (resolve, reject) => {
+      try {
+        const value = await this.cacheClient.get(requestHash);
         if (value) {
           this.logger?.info('Request found in redis');
           resolve(<T>JSON.parse(value));
@@ -85,26 +113,18 @@ export class StaleFetcher {
                 handler(data);
               });
               delete this.hashHandlers[requestHash];
-              this.cacheClient.set(
-                requestHash,
-                JSON.stringify(data),
-                'PX',
-                this.cacheTTL
-              );
-              setInterval(async () => {
-                this.logger?.info('Refreshing request cache');
-                const { data } = await this.axiosInstance.get(url, options);
-                this.cacheClient.set(
-                  requestHash,
-                  JSON.stringify(data),
-                  'PX',
-                  this.cacheTTL
-                );
-              }, this.refreshInterval);
+              this.store(requestHash, JSON.stringify(data), this.cacheTTL, {
+                url,
+                options
+              });
+            }).catch((error) => {
+              reject(error);
             });
           }
         }
-      });
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 }
