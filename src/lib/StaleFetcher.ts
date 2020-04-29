@@ -35,15 +35,34 @@ export class StaleFetcher {
       checkperiod: 1
     });
 
-    this.refreshCache.on(
-      'expired',
-      async (key: string, value: RefreshConfig) => {
-        const { url, options } = value;
-        this.logger?.info(`Refreshing request cache key ${key}`);
-        const { data } = await this.axiosInstance.get(url, options);
-        this.store(key, JSON.stringify(data), this.cacheTTL, value);
+    this.refreshCache.on('expired', (key: string, value: RefreshConfig) => {
+      this.onCacheExpire(key, value);
+    });
+  }
+  /**
+   * Handler for on cache expire
+   * @param {string} key cache key
+   * @param {RefreshConfig} value expired key valuw
+   */
+  private async onCacheExpire(key: string, value: RefreshConfig) {
+    const { url, options, backoff } = value;
+    this.logger?.info(`Refreshing request cache key ${key}`);
+    try {
+      const { data } = await this.axiosInstance.get(url, options);
+      this.store(key, JSON.stringify(data), this.cacheTTL, value);
+    } catch (error) {
+      this.logger?.error('Refresh failure', { key, url });
+      // Exponential backoff
+      if (backoff > 65536) {
+        this.logger?.error('Exceeded backoff time, cancelling update');
+      } else {
+        const newTTL = backoff + backoff * 2;
+        this.refreshCache.set(key, {
+          ...value,
+          backoff: newTTL
+        }, newTTL);
       }
-    );
+    }
   }
   /**
    * Caculate hash for the request
@@ -115,7 +134,8 @@ export class StaleFetcher {
               delete this.hashHandlers[requestHash];
               this.store(requestHash, JSON.stringify(data), this.cacheTTL, {
                 url,
-                options
+                options,
+                backoff: 0
               });
             }).catch((error) => {
               reject(error);
